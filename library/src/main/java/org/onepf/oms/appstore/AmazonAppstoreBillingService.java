@@ -226,7 +226,15 @@ public class AmazonAppstoreBillingService implements AppstoreInAppBillingService
                     break;
                 }
                 for (final Receipt receipt : purchaseUpdatesResponse.getReceipts()) {
-                    inventory.addPurchase(getPurchase(receipt));
+                    final Purchase purchase = getPurchase(receipt);
+                    final JSONObject json = new JSONObject();
+                    try{
+                        json.put(JSON_KEY_USER_ID, userId);
+                    } catch (JSONException e) {
+                        Logger.e("onPurchaseUpdatesResponse() failed to generate JSON", e);
+                    }
+                    purchase.setOriginalJson(json.toString());
+                    inventory.addPurchase(purchase);
                 }
                 if (purchaseUpdatesResponse.hasMore()) {
                     PurchasingService.getPurchaseUpdates(false);

@@ -227,13 +227,7 @@ public class AmazonAppstoreBillingService implements AppstoreInAppBillingService
                 }
                 for (final Receipt receipt : purchaseUpdatesResponse.getReceipts()) {
                     final Purchase purchase = getPurchase(receipt);
-                    final JSONObject json = new JSONObject();
-                    try{
-                        json.put(JSON_KEY_USER_ID, userId);
-                    } catch (JSONException e) {
-                        Logger.e("onPurchaseUpdatesResponse() failed to generate JSON", e);
-                    }
-                    purchase.setOriginalJson(json.toString());
+                    purchase.setOriginalJson(generateOriginalJson(purchaseUpdatesResponse, receipt));
                     inventory.addPurchase(purchase);
                 }
                 if (purchaseUpdatesResponse.hasMore()) {
@@ -433,6 +427,48 @@ public class AmazonAppstoreBillingService implements AppstoreInAppBillingService
                 json.put(JSON_KEY_PURCHASE_STATUS, requestStatus.name());
             }
             final UserData userData = purchaseResponse.getUserData();
+            if (userData != null) {
+                json.put(JSON_KEY_USER_ID, userData.getUserId());
+            }
+            final ProductType productType = receipt.getProductType();
+            if (productType != null) {
+                json.put(JSON_KEY_RECEIPT_ITEM_TYPE, productType.name());
+            }
+            json.put(JSON_KEY_RECEIPT_PURCHASE_TOKEN, receipt.getReceiptId());
+            Logger.d("generateOriginalJson(): JSON\n", json);
+        } catch (JSONException e) {
+            Logger.e("generateOriginalJson() failed to generate JSON", e);
+        }
+        return json.toString();
+    }
+
+
+    /**
+     * Converts purchase response to json for transfer with purchase object
+     * <p/>
+     * <pre>
+     * {
+     * "orderId"           : "purchaseUpdatesResponse.getRequestId"
+     * "productId"         : "receipt.getSku"
+     * "purchaseStatus"    : "purchaseRequestStatus.name"
+     * "userId"            : "purchaseUpdatesResponse.getUserId()" // if non-null
+     * "itemType"          : "receipt.getItemType().name()" // if non-null
+     * "purchaseToken"     : "receipt.getReceiptId()"
+     * } </pre>
+     *
+     * @param purchaseUpdatesResponse Purchase to convert.
+     * @return Generate JSON from purchase.
+     */
+    private String generateOriginalJson(@NotNull PurchaseUpdatesResponse purchaseUpdatesResponse, @NotNull Receipt receipt) {
+        final JSONObject json = new JSONObject();
+        try {
+            json.put(JSON_KEY_ORDER_ID, purchaseUpdatesResponse.getRequestId());
+            json.put(JSON_KEY_PRODUCT_ID, receipt.getSku());
+            final PurchaseUpdatesResponse.RequestStatus requestStatus = purchaseUpdatesResponse.getRequestStatus();
+            if (requestStatus != null) {
+                json.put(JSON_KEY_PURCHASE_STATUS, requestStatus.name());
+            }
+            final UserData userData = purchaseUpdatesResponse.getUserData();
             if (userData != null) {
                 json.put(JSON_KEY_USER_ID, userData.getUserId());
             }
